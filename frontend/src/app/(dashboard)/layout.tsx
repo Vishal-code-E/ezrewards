@@ -1,32 +1,46 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { useAuth } from '@/lib/hooks/useAuth'
+import { supabase } from '@/lib/supabase'
+import Sidebar from '@/components/layout/Sidebar'
+import Header from '@/components/layout/Header'
 
 export default function DashboardLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
-  const { session, loading } = useAuth()
   const router = useRouter()
+  const [checking, setChecking] = useState(true)
 
   useEffect(() => {
-    if (!loading && !session) {
-      router.push('/login')
-    }
-  }, [session, loading, router])
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!session) {
+        router.replace('/login')
+      } else {
+        setChecking(false)
+      }
+    })
+  }, [router])
 
-  if (loading) {
+  if (checking) {
     return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>
-        <p style={{ color: '#6b7280', fontSize: 14 }}>Loading...</p>
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="w-5 h-5 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
       </div>
     )
   }
 
-  if (!session) return null
-
-  return <>{children}</>
+  return (
+    <div className="flex h-screen bg-slate-50">
+      <Sidebar />
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+        <Header />
+        <main className="flex-1 overflow-y-auto p-6">
+          {children}
+        </main>
+      </div>
+    </div>
+  )
 }

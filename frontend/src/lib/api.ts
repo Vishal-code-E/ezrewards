@@ -1,11 +1,14 @@
 import { supabase } from './supabase'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+console.log('[api.ts] API_URL =', API_URL)
+//const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
 // ── Auth header ───────────────────────────────────────────────────────────────
 
 async function getHeaders(): Promise<HeadersInit> {
   const { data: { session } } = await supabase.auth.getSession()
+  
 
   if (!session?.access_token) {
     // Clear any stale state and redirect to login
