@@ -11,6 +11,7 @@ import { Select }      from '@/components/ui/Select'
 import { Button }      from '@/components/ui/Button'
 import ChatPanel       from '@/components/reports/ChatPanel'
 
+
 const REPORT_LABELS: Record<string, string> = {
   'invitations':            'Invitation Status',
   'recognition':            'Recognition Activity',
@@ -181,3 +182,4 @@ export default function ReportPage() {
     </div>
   )
 }
+

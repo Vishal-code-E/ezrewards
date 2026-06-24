@@ -16,7 +16,7 @@ export default function LoginPage() {
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) {
-        router.replace('/')
+        router.replace('/reports')
       } else {
         setChecking(false)
       }
@@ -42,7 +42,7 @@ export default function LoginPage() {
       return
     }
 
-    router.push('/')
+    router.push('/reports')
   }
 
   // Avoid flashing the form to an already-authenticated user
