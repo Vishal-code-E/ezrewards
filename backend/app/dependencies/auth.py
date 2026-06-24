@@ -2,30 +2,37 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import jwt
 from jwt.exceptions import ExpiredSignatureError, InvalidTokenError
+from jwt import PyJWKClient
 from app.config import settings
-
+from app.database import get_db
+import asyncpg
 
 security = HTTPBearer()
+
+JWKS_URL = f"{settings.SUPABASE_URL}/auth/v1/.well-known/jwks.json"
+jwks_client = PyJWKClient(JWKS_URL)
 
 
 async def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: asyncpg.Connection = Depends(get_db),
 ) -> dict:
     """
     Validates the Supabase JWT and extracts user context.
     Returns: { user_id, workspace_id, role, email }
 
-    This is the identity layer — answers: WHO are you?
-    RBAC (what can you do?) is handled by require_admin/require_manager below.
+    Looks up workspace membership directly from DB instead of relying
+    on JWT claims — more reliable with Supabase's new ES256 signing keys.
     """
     token = credentials.credentials
 
     try:
+        signing_key = jwks_client.get_signing_key_from_jwt(token)
         payload = jwt.decode(
             token,
-            settings.SUPABASE_JWT_SECRET,
-            algorithms=["HS256"],
-            audience="authenticated",   # Supabase sets aud = "authenticated"
+            signing_key.key,
+            algorithms=["ES256", "HS256"],
+            audience="authenticated",
             options={"verify_exp": True},
         )
     except ExpiredSignatureError:
@@ -33,25 +40,43 @@ async def get_current_user(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Session expired. Please log in again.",
         )
-    except InvalidTokenError as e:
+    except InvalidTokenError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid token.",
         )
 
-    workspace_id = payload.get("workspace_id")
-    user_role    = payload.get("user_role", "Employee")
+    user_id = payload.get("sub")
+    if not user_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token.",
+        )
 
-    if not workspace_id:
+    # Look up workspace membership directly from DB
+    # More reliable than JWT claims with Supabase's new ES256 keys
+    row = await db.fetchrow(
+        """
+        SELECT wm.workspace_id::text, wm.role
+        FROM public.workspace_members wm
+        WHERE wm.user_id = $1::uuid
+          AND wm.status  = 'Active'
+          AND wm.is_deleted = FALSE
+        LIMIT 1
+        """,
+        user_id,
+    )
+
+    if not row:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="No workspace associated with this account. Contact your Admin.",
         )
 
     return {
-        "user_id":      payload["sub"],
-        "workspace_id": workspace_id,
-        "role":         user_role,
+        "user_id":      user_id,
+        "workspace_id": row["workspace_id"],
+        "role":         row["role"],
         "email":        payload.get("email"),
     }
 
