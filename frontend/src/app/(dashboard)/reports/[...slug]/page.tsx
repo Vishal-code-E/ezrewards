@@ -9,8 +9,8 @@ import ReportTable     from '@/components/reports/ReportTable'
 import ExportButton    from '@/components/reports/ExportButton'
 import { Select }      from '@/components/ui/Select'
 import { Button }      from '@/components/ui/Button'
+import ChatPanel       from '@/components/reports/ChatPanel'
 
-// Maps slug array → readable page title
 const REPORT_LABELS: Record<string, string> = {
   'invitations':            'Invitation Status',
   'recognition':            'Recognition Activity',
@@ -29,19 +29,17 @@ const REPORT_LABELS: Record<string, string> = {
 const PAGE_SIZE = 20
 
 export default function ReportPage() {
-  const params   = useParams()
-  const slugArr  = Array.isArray(params.slug) ? params.slug : [params.slug]
-  const slugKey  = slugArr.join('/')          // e.g. "recognition/given"
-  const apiPath  = `/api/reports/${slugKey}`      // e.g. "/api/reports/recognition/given"
-  const title    = REPORT_LABELS[slugKey] ?? slugKey
+  const params  = useParams()
+  const slugArr = Array.isArray(params.slug) ? params.slug : [params.slug]
+  const slugKey = slugArr.join('/')
+  const apiPath = `/api/reports/${slugKey}`
+  const title   = REPORT_LABELS[slugKey] ?? slugKey
 
-  const [data,    setData]    = useState<Record<string, unknown>[]>([])
-  const [summary, setSummary] = useState<Record<string, unknown> | undefined>()
-  const [meta,    setMeta]    = useState<{ total: number; total_pages: number; page: number } | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error,   setError]   = useState<string | null>(null)
-
-  // Filters
+  const [data,       setData]       = useState<Record<string, unknown>[]>([])
+  const [summary,    setSummary]    = useState<Record<string, unknown> | undefined>()
+  const [meta,       setMeta]       = useState<{ total: number; total_pages: number; page: number } | null>(null)
+  const [loading,    setLoading]    = useState(true)
+  const [error,      setError]      = useState<string | null>(null)
   const [page,       setPage]       = useState(1)
   const [status,     setStatus]     = useState('')
   const [department, setDepartment] = useState('')
@@ -50,15 +48,15 @@ export default function ReportPage() {
     setLoading(true)
     setError(null)
 
-    const params: Record<string, string> = {
+    const queryParams: Record<string, string> = {
       page:      String(page),
       page_size: String(PAGE_SIZE),
     }
-    if (status)     params.status     = status
-    if (department) params.department = department
+    if (status)     queryParams.status     = status
+    if (department) queryParams.department = department
 
     try {
-      const res = await apiGet<Record<string, unknown>[]>(apiPath, params) as ReportResponse<Record<string, unknown>>
+      const res = await apiGet<ReportResponse<Record<string, unknown>>>(apiPath, queryParams)
       setData(res.data)
       setSummary(res.summary as Record<string, unknown>)
       setMeta({
@@ -74,13 +72,9 @@ export default function ReportPage() {
   }, [apiPath, page, status, department])
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchReport()
   }, [fetchReport])
-
-  // Reset to page 1 when filters change
-  useEffect(() => {
-    setPage(1)
-  }, [status, department, slugKey])
 
   const filterParams: Record<string, string> = {}
   if (status)     filterParams.status     = status
@@ -110,7 +104,7 @@ export default function ReportPage() {
         <Select
           label="Status"
           value={status}
-          onChange={(e) => setStatus(e.target.value)}
+          onChange={(e) => { setStatus(e.target.value); setPage(1) }}
           className="w-40"
         >
           <option value="">All</option>
@@ -123,7 +117,7 @@ export default function ReportPage() {
         <Select
           label="Department"
           value={department}
-          onChange={(e) => setDepartment(e.target.value)}
+          onChange={(e) => { setDepartment(e.target.value); setPage(1) }}
           className="w-44"
         >
           <option value="">All Departments</option>
@@ -138,7 +132,7 @@ export default function ReportPage() {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => { setStatus(''); setDepartment('') }}
+            onClick={() => { setStatus(''); setDepartment(''); setPage(1) }}
           >
             Clear filters
           </Button>
@@ -181,6 +175,8 @@ export default function ReportPage() {
           </div>
         </div>
       )}
+
+      <ChatPanel />
 
     </div>
   )
