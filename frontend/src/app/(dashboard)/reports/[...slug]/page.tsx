@@ -9,7 +9,9 @@ import ReportTable     from '@/components/reports/ReportTable'
 import ExportButton    from '@/components/reports/ExportButton'
 import { Select }      from '@/components/ui/Select'
 import { Button }      from '@/components/ui/Button'
-import ChatPanel       from '@/components/reports/ChatPanel'
+//import ChatPanel       from '@/components/reports/ChatPanel'
+import EmbeddedChat from '@/components/reports/EmbeddedChat'
+import Link from 'next/link'
 
 
 const REPORT_LABELS: Record<string, string> = {
@@ -27,7 +29,7 @@ const REPORT_LABELS: Record<string, string> = {
   'emails':                 'Email Notifications',
 }
 
-const PAGE_SIZE = 20
+const PAGE_SIZE = 5
 
 export default function ReportPage() {
   const params  = useParams()
@@ -87,6 +89,19 @@ export default function ReportPage() {
       {/* Page header */}
       <div className="flex items-center justify-between mb-6">
         <div>
+          <Link
+            href="/reports"
+            className="inline-flex items-center gap-1.5 text-xs text-slate-500
+                 hover:text-indigo-600 transition-colors mb-2 group"
+         >
+           <svg
+             className="w-3.5 h-3.5 group-hover:-translate-x-0.5 transition-transform"
+             fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
+          </svg>
+           All Reports
+          </Link>
           <h1 className="text-xl font-semibold text-slate-900">{title}</h1>
           {meta && (
             <p className="mt-0.5 text-sm text-slate-500">
@@ -150,6 +165,8 @@ export default function ReportPage() {
       {/* Table */}
       <ReportTable data={data} loading={loading} />
 
+      <EmbeddedChat reportContext={slugKey} />
+
       {/* Pagination */}
       {meta && meta.total_pages > 1 && (
         <div className="flex items-center justify-between mt-4">
@@ -177,7 +194,7 @@ export default function ReportPage() {
         </div>
       )}
 
-      <ChatPanel />
+      {/* <ChatPanel reportContext={slugKey} /> */}
 
     </div>
   )

@@ -13,7 +13,7 @@ router = APIRouter(dependencies=[Depends(require_admin)])
 @router.post(
     "/chat/reports",
     summary="Report Chatbot",
-    description="Natural language interface over all report data. Admin only.",
+    description="Context-aware natural language interface. Pass report_context to restrict to a single report.",
 )
 async def report_chat(
     body:         ChatMessage,
@@ -22,9 +22,10 @@ async def report_chat(
 ) -> ChatResponse:
 
     result = await process_chat_message(
-        message      = body.message,
-        workspace_id = current_user["workspace_id"],
-        db           = db,
+        message        = body.message,
+        workspace_id   = current_user["workspace_id"],
+        db             = db,
+        report_context = body.report_context,   # ← pass context through
     )
 
     return ChatResponse(

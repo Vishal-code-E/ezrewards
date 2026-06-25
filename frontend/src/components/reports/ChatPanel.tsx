@@ -5,31 +5,70 @@ import { apiPost } from '@/lib/api'
 import ChatMessage from './ChatMessage'
 
 interface Message {
-  role: 'user' | 'assistant'
-  content: string
+  role:     'user' | 'assistant'
+  content:  string
   toolUsed?: string
 }
 
 interface ChatResponse {
-  success:   boolean
-  answer:    string
-  tool_used: string
+  success:    boolean
+  answer:     string
+  tool_used:  string
   request_id: string
 }
 
-export default function ChatPanel() {
+interface ChatPanelProps {
+  reportContext?: string   // e.g. "wallet", "invitations" — undefined = all reports
+}
+
+const REPORT_LABELS: Record<string, string> = {
+  'invitations':          'Invitation Status',
+  'recognition':          'Recognition Activity',
+  'recognition/given':    'Recognition Given',
+  'recognition/received': 'Recognition Received',
+  'seats':                'Active Seat Usage',
+  'redemptions':          'Voucher Redemption',
+  'wallet':               'Wallet Balance',
+  'wallet/transactions':  'Wallet Transactions',
+  'payments':             'Payment History',
+}
+
+function getWelcomeMessage(reportContext?: string): string {
+  if (!reportContext) {
+    return 'Hi! Ask me anything across all reports — invitations, recognition, wallet, payments, and more. I can query multiple reports to answer complex questions.'
+  }
+  const name = REPORT_LABELS[reportContext] ?? reportContext
+  return `Hi! I can answer questions about the ${name} report. Ask me anything about this data. For other reports, head back to the main Reports page.`
+}
+
+function getSubtitle(reportContext?: string): string {
+  if (!reportContext) return 'Ask across all reports'
+  const name = REPORT_LABELS[reportContext] ?? reportContext
+  return `Scoped to: ${name}`
+}
+
+export default function ChatPanel({ reportContext }: ChatPanelProps) {
   const [open,     setOpen]     = useState(false)
   const [messages, setMessages] = useState<Message[]>([
     {
       role:    'assistant',
-      content: 'Hi! Ask me anything about your workspace reports — invitations, recognition, wallet, payments, and more.',
+      content: getWelcomeMessage(reportContext),
     },
   ])
   const [input,   setInput]   = useState('')
   const [loading, setLoading] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
 
-  // Auto-scroll to latest message
+  // Reset messages when context changes (navigating between report pages)
+  useEffect(() => {
+    setMessages([
+      {
+        role:    'assistant',
+        content: getWelcomeMessage(reportContext),
+      },
+    ])
+  }, [reportContext])
+
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
@@ -38,17 +77,19 @@ export default function ChatPanel() {
     const message = input.trim()
     if (!message || loading) return
 
-    // Add user message immediately
     setMessages((prev) => [...prev, { role: 'user', content: message }])
     setInput('')
     setLoading(true)
 
     try {
-      const res = await apiPost<ChatResponse>('/api/chat/reports', { message })
+      const res = await apiPost<ChatResponse>('/api/chat/reports', {
+        message,
+        report_context: reportContext ?? null,
+      })
       setMessages((prev) => [
         ...prev,
         {
-          role:    'assistant',
+          role:     'assistant',
           content:  res.answer,
           toolUsed: res.tool_used,
         },
@@ -58,7 +99,9 @@ export default function ChatPanel() {
         ...prev,
         {
           role:    'assistant',
-          content: err instanceof Error ? err.message : 'Something went wrong. Please try again.',
+          content: err instanceof Error
+            ? err.message
+            : 'Something went wrong. Please try again.',
         },
       ])
     } finally {
@@ -78,10 +121,10 @@ export default function ChatPanel() {
       {/* Floating button */}
       <button
         onClick={() => setOpen((o) => !o)}
-        className="fixed bottom-6 right-6 w-13 h-13 bg-indigo-600 text-white
-                   rounded-full shadow-lg hover:bg-indigo-700 transition-colors
-                   flex items-center justify-center z-50 w-14 h-14"
         aria-label="Open chat"
+        className="fixed bottom-6 right-6 w-14 h-14 bg-indigo-600 text-white
+                   rounded-full shadow-lg hover:bg-indigo-700 transition-colors
+                   flex items-center justify-center z-50"
       >
         {open ? (
           <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
@@ -96,20 +139,34 @@ export default function ChatPanel() {
 
       {/* Chat panel */}
       {open && (
-        <div className="fixed bottom-24 right-6 w-[380px] h-[520px] bg-white rounded-2xl
+        <div className="fixed bottom-24 right-6 w-[400px] h-[540px] bg-white rounded-2xl
                         shadow-2xl border border-slate-200 flex flex-col z-50">
 
           {/* Header */}
-          <div className="flex items-center gap-3 px-4 py-3 border-b border-slate-100">
-            <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center flex-shrink-0">
-              <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
-              </svg>
+          <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center flex-shrink-0">
+                <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
+                </svg>
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-slate-900">Reports Assistant</p>
+                <p className="text-xs text-slate-500">{getSubtitle(reportContext)}</p>
+              </div>
             </div>
-            <div>
-              <p className="text-sm font-semibold text-slate-900">Reports Assistant</p>
-              <p className="text-xs text-slate-500">Ask about your workspace data</p>
-            </div>
+
+            {/* Context badge */}
+            {reportContext && (
+              <span className="text-xs bg-indigo-50 text-indigo-600 font-medium px-2 py-0.5 rounded-full">
+                Focused
+              </span>
+            )}
+            {!reportContext && (
+              <span className="text-xs bg-emerald-50 text-emerald-600 font-medium px-2 py-0.5 rounded-full">
+                All reports
+              </span>
+            )}
           </div>
 
           {/* Messages */}
@@ -123,7 +180,6 @@ export default function ChatPanel() {
               />
             ))}
 
-            {/* Loading indicator */}
             {loading && (
               <div className="flex items-start">
                 <div className="bg-white border border-slate-200 rounded-2xl rounded-bl-sm px-4 py-2.5">
@@ -141,16 +197,22 @@ export default function ChatPanel() {
 
           {/* Input */}
           <div className="px-3 py-3 border-t border-slate-100">
-            <div className="flex items-center gap-2 bg-slate-50 rounded-xl px-3 py-2 border border-slate-200 focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-500/20 transition-colors">
+            <div className="flex items-center gap-2 bg-slate-50 rounded-xl px-3 py-2
+                            border border-slate-200 focus-within:border-indigo-500
+                            focus-within:ring-2 focus-within:ring-indigo-500/20 transition-colors">
               <input
                 type="text"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="Ask about reports..."
+                placeholder={
+                  reportContext
+                    ? `Ask about ${REPORT_LABELS[reportContext] ?? reportContext}...`
+                    : 'Ask about any report...'
+                }
                 disabled={loading}
-                className="flex-1 bg-transparent text-sm text-slate-900 placeholder:text-slate-400
-                           focus:outline-none disabled:opacity-50"
+                className="flex-1 bg-transparent text-sm text-slate-900
+                           placeholder:text-slate-400 focus:outline-none disabled:opacity-50"
               />
               <button
                 onClick={handleSend}

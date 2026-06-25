@@ -1,4 +1,5 @@
 import ReportCard from '@/components/reports/ReportCard'
+import EmbeddedChat from '@/components/reports/EmbeddedChat'
 
 const reports = [
   {
@@ -99,6 +100,11 @@ export default function ReportsPage() {
           />
         ))}
       </div>
+
+      <EmbeddedChat />
+
+      
+
 
     </div>
   )

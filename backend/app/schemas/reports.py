@@ -417,6 +417,7 @@ class EmailNotificationResponse(BaseModel):
 
 class ChatMessage(BaseModel):
     message: str = Field(..., min_length=1, max_length=1000)
+    report_context: str | None = None  # optional context for the report query
 
 
 class ChatResponse(BaseModel):
