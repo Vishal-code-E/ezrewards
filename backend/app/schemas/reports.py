@@ -415,9 +415,14 @@ class EmailNotificationResponse(BaseModel):
     summary: EmailNotificationSummary
     meta:    ReportMeta
 
+class HistoryMessage(BaseModel):
+    role:    str = Field(..., pattern="^(user|assistant)$")
+    content: str = Field(..., max_length=500)
+
 class ChatMessage(BaseModel):
     message: str = Field(..., min_length=1, max_length=1000)
     report_context: str | None = None  # optional context for the report query
+    history: List[HistoryMessage] = Field(default=[], max_items=6)  # last 6 messages in the conversation
 
 
 class ChatResponse(BaseModel):

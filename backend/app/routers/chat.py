@@ -25,7 +25,8 @@ async def report_chat(
         message        = body.message,
         workspace_id   = current_user["workspace_id"],
         db             = db,
-        report_context = body.report_context,   # ← pass context through
+        report_context = body.report_context,# ← pass context through
+        history        = [h.model_dump() for h in body.history],   
     )
 
     return ChatResponse(

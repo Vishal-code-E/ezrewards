@@ -3,11 +3,17 @@
 import { useState, useRef, useEffect } from 'react'
 import { apiPost } from '@/lib/api'
 import ChatMessage from './ChatMessage'
+import { Content } from 'next/font/google'
 
 interface Message {
   role:      'user' | 'assistant'
   content:   string
   toolUsed?: string
+}
+
+interface HistoryEntry {
+  role:    'user' | 'assistant'
+  content: string
 }
 
 interface ChatResponse {
@@ -66,6 +72,7 @@ export default function EmbeddedChat({ reportContext }: EmbeddedChatProps) {
   ])
   const [input,   setInput]   = useState('')
   const [loading, setLoading] = useState(false)
+  const [history, setHistory] = useState<HistoryEntry[]>([])
   const bottomRef = useRef<HTMLDivElement>(null)
 
   const suggestedQuestions = reportContext
@@ -76,6 +83,7 @@ export default function EmbeddedChat({ reportContext }: EmbeddedChatProps) {
 
   useEffect(() => {
     setMessages([{ role: 'assistant', content: getWelcomeMessage(reportContext) }])
+    setHistory([])
   }, [reportContext])
 
   useEffect(() => {
@@ -94,6 +102,7 @@ export default function EmbeddedChat({ reportContext }: EmbeddedChatProps) {
       const res = await apiPost<ChatResponse>('/api/chat/reports', {
         message,
         report_context: reportContext ?? null,
+        history,
       })
       setMessages((prev) => [
         ...prev,
@@ -103,6 +112,20 @@ export default function EmbeddedChat({ reportContext }: EmbeddedChatProps) {
           toolUsed: res.tool_used,
         },
       ])
+
+      const truncated = res.answer.length > 500
+        ? res.answer.slice(0,500) + '...'
+        : res.answer
+
+        setHistory((prev) => {
+        const updated = [
+          ...prev,
+          { role: 'user' as const,      content: message  },
+          { role: 'assistant' as const, content: message  },
+        ]
+        return updated.slice(-6)
+
+    })
     } catch (err: unknown) {
       setMessages((prev) => [
         ...prev,
@@ -140,7 +163,7 @@ export default function EmbeddedChat({ reportContext }: EmbeddedChatProps) {
         }`}>
           {reportContext
             ? `Focused: ${REPORT_LABELS[reportContext] ?? reportContext}`
-            : 'All 9 reports'}
+            : 'All 12 reports'}
         </span>
         {!reportContext && (
           <span className="text-xs text-slate-400">· Multi-tool enabled</span>
@@ -150,7 +173,7 @@ export default function EmbeddedChat({ reportContext }: EmbeddedChatProps) {
       <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
 
         {/* Messages area */}
-        <div className="h-80 overflow-y-auto px-5 py-5 space-y-4 bg-slate-50/40">
+        <div className="min-h-[320px] max-h-[560px] overflow-y-auto px-5 py-5 space-y-4 bg-slate-50/40">
           {messages.map((msg, i) => (
             <ChatMessage
               key={i}
