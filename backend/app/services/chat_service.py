@@ -518,7 +518,7 @@ async def _run_focused_mode(
         system=system_prompt,
         tools=available_tools,
         messages=[
-            message_with_history,
+            messages_with_history,
             {"role": "assistant", "content": response.content},
             {
                 "role": "user",
