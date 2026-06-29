@@ -479,7 +479,7 @@ async def _run_focused_mode(
         max_tokens=512,
         system=system_prompt,
         tools=available_tools,
-        message=message_with_history,
+        messages=messages_with_history,
     )
 
     # Out-of-scope question — Claude answered without calling a tool
